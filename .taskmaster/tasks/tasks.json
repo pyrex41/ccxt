@@ -257,7 +257,7 @@
       {
         "id": "19",
         "title": "[PARENT] Create basic CLI tool for Data Lake",
-        "description": "Develop a CLI tool in cli/index.ts with commands for basic operations like stats and gaps. Test it with the SQLite backend to ensure it provides useful output.\n\n[This task has been expanded into subtasks: 19.1, 19.2, 19.3, 19.4]",
+        "description": "Develop a CLI tool in cli/index.ts with commands for basic operations like stats and gaps. Test it with the SQLite backend to ensure it provides useful output.\n\n[This task has been expanded into subtasks: 19.1, 19.2, 19.3, 19.4]\n\n[PARALLELISM NOTE: Can run in parallel with Task 23 once Task 18 completes]",
         "status": "pending",
         "complexity": 5,
         "priority": "medium",
@@ -315,7 +315,7 @@
       {
         "id": "23",
         "title": "[PARENT] Enhance CLI with backfill and advanced commands",
-        "description": "Expand the CLI tool to include backfill, stats, and gaps commands. Ensure it works across all backends and provides detailed progress output.\n\n[This task has been expanded into subtasks: 23.1, 23.2, 23.3, 23.4, 23.5]",
+        "description": "Expand the CLI tool to include backfill, stats, and gaps commands. Ensure it works across all backends and provides detailed progress output.\n\n[This task has been expanded into subtasks: 23.1, 23.2, 23.3, 23.4, 23.5]\n\n[PARALLELISM NOTE: Can run in parallel with Task 19 once Task 21 completes]",
         "status": "pending",
         "complexity": 8,
         "priority": "medium",

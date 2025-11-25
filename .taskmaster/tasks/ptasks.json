@@ -1,0 +1,272 @@
+{
+  "name": "data-lake-parallel-tasks",
+  "description": "Parallel task execution plan for CCXT Data Lake feature (Tasks 16-24)",
+  "created_at": "2025-11-25T14:45:00Z",
+  "phases": [
+    {
+      "phase": 1,
+      "name": "Foundation",
+      "description": "Sequential setup tasks that must complete before parallelism is possible",
+      "parallel": false,
+      "tasks": [
+        {
+          "id": "1",
+          "title": "Open CCXT GitHub Discussion Issue",
+          "status": "pending",
+          "estimated_hours": 1,
+          "blockers": []
+        }
+      ]
+    },
+    {
+      "phase": 2,
+      "name": "Project Setup",
+      "description": "Initialize Data Lake TypeScript project structure",
+      "parallel": false,
+      "depends_on_phases": [1],
+      "tasks": [
+        {
+          "id": "16",
+          "title": "[PARENT] Set up TypeScript project for Data Lake",
+          "status": "pending",
+          "estimated_hours": 4,
+          "subtasks": ["16.1", "16.2", "16.3", "16.4"],
+          "blockers": ["1"]
+        }
+      ]
+    },
+    {
+      "phase": 3,
+      "name": "Interface Definition",
+      "description": "Define the Backend interface that all implementations will use",
+      "parallel": false,
+      "depends_on_phases": [2],
+      "tasks": [
+        {
+          "id": "17",
+          "title": "[PARENT] Implement Backend interface in interface.ts",
+          "status": "pending",
+          "estimated_hours": 2,
+          "subtasks": ["17.1", "17.2", "17.3"],
+          "blockers": ["16"]
+        }
+      ]
+    },
+    {
+      "phase": 4,
+      "name": "Backend Implementations",
+      "description": "Implement all three backends IN PARALLEL - this is the main parallelization opportunity",
+      "parallel": true,
+      "depends_on_phases": [3],
+      "parallel_streams": [
+        {
+          "stream": "A",
+          "name": "SQLite Backend",
+          "tasks": [
+            {
+              "id": "18",
+              "title": "[PARENT] Build SQLite backend with FTS5 search",
+              "status": "pending",
+              "estimated_hours": 8,
+              "subtasks": ["18.1", "18.2", "18.3", "18.4", "18.5"],
+              "blockers": ["17"],
+              "key_deliverables": [
+                "Schema with FTS5 virtual table",
+                "Write/read operations",
+                "Gap detection logic",
+                ">50,000 candles/sec throughput"
+              ]
+            }
+          ]
+        },
+        {
+          "stream": "B",
+          "name": "Parquet Backend",
+          "tasks": [
+            {
+              "id": "20",
+              "title": "[PARENT] Implement Parquet backend with S3 support",
+              "status": "pending",
+              "estimated_hours": 12,
+              "subtasks": ["20.1", "20.2", "20.3", "20.4", "20.5", "20.6"],
+              "blockers": ["17"],
+              "key_deliverables": [
+                "parquetjs-lite integration",
+                "Time-based partitioning",
+                "Compression (Snappy/GZIP)",
+                "S3 upload/download",
+                "MinIO testing"
+              ]
+            }
+          ]
+        },
+        {
+          "stream": "C",
+          "name": "TimescaleDB Backend",
+          "tasks": [
+            {
+              "id": "21",
+              "title": "[PARENT] Implement TimescaleDB backend",
+              "status": "pending",
+              "estimated_hours": 8,
+              "subtasks": ["21.1", "21.2", "21.3", "21.4", "21.5"],
+              "blockers": ["17"],
+              "key_deliverables": [
+                "PostgreSQL connection pool",
+                "Hypertable creation",
+                "Compression policies",
+                "Retention policies",
+                "Window function gap detection"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "phase": 5,
+      "name": "CLI & Orchestration",
+      "description": "Build CLI tools and backfill logic - partial parallelism possible",
+      "parallel": true,
+      "depends_on_phases": [4],
+      "parallel_streams": [
+        {
+          "stream": "A",
+          "name": "SQLite CLI Path",
+          "tasks": [
+            {
+              "id": "19",
+              "title": "[PARENT] Create basic CLI tool for Data Lake",
+              "status": "pending",
+              "estimated_hours": 4,
+              "subtasks": ["19.1", "19.2", "19.3", "19.4"],
+              "blockers": ["18"],
+              "note": "Can start once SQLite backend is ready"
+            }
+          ]
+        },
+        {
+          "stream": "B",
+          "name": "TimescaleDB CLI Path",
+          "tasks": [
+            {
+              "id": "23",
+              "title": "[PARENT] Enhance CLI with backfill and advanced commands",
+              "status": "pending",
+              "estimated_hours": 8,
+              "subtasks": ["23.1", "23.2", "23.3", "23.4", "23.5"],
+              "blockers": ["21"],
+              "note": "Can start once TimescaleDB backend is ready"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "phase": 6,
+      "name": "Backfill Orchestration",
+      "description": "Implement data backfill with rate limiting - requires multiple backends",
+      "parallel": false,
+      "depends_on_phases": [5],
+      "tasks": [
+        {
+          "id": "22",
+          "title": "[PARENT] Add backfill orchestration with rate limiting",
+          "status": "pending",
+          "estimated_hours": 8,
+          "subtasks": ["22.1", "22.2", "22.3", "22.4", "22.5"],
+          "blockers": ["18", "19", "20"],
+          "key_deliverables": [
+            "Rate limit handling",
+            "Progress callbacks",
+            "Error handling",
+            "CCXT exchange integration"
+          ]
+        }
+      ]
+    },
+    {
+      "phase": 7,
+      "name": "Testing",
+      "description": "Comprehensive testing across all backends",
+      "parallel": false,
+      "depends_on_phases": [6],
+      "tasks": [
+        {
+          "id": "24",
+          "title": "[PARENT] Write comprehensive tests for Data Lake",
+          "status": "pending",
+          "estimated_hours": 12,
+          "subtasks": ["24.1", "24.2", "24.3", "24.4", "24.5", "24.6"],
+          "blockers": ["18", "19", "20", "21", "22"],
+          "target_coverage": ">85%",
+          "key_deliverables": [
+            "Unit tests for all backends",
+            "Integration tests",
+            "Throughput benchmarks",
+            "Gap detection accuracy tests"
+          ]
+        }
+      ]
+    }
+  ],
+  "parallelism_summary": {
+    "max_parallel_streams": 3,
+    "primary_parallelization_phase": 4,
+    "parallel_tasks": ["18", "20", "21"],
+    "secondary_parallelization_phase": 5,
+    "secondary_parallel_tasks": ["19", "23"],
+    "total_estimated_hours_sequential": 67,
+    "total_estimated_hours_parallel": 43,
+    "time_savings_percent": 36
+  },
+  "critical_path": {
+    "description": "Longest path through the dependency graph",
+    "path": ["1", "16", "17", "20", "22", "24"],
+    "estimated_hours": 39,
+    "bottleneck": "Task 20 (Parquet backend) is the longest single task on critical path"
+  },
+  "resource_allocation": {
+    "recommended_team_size": 3,
+    "allocation": [
+      {
+        "developer": "Dev A",
+        "focus": "SQLite backend + Basic CLI",
+        "tasks": ["18", "19"]
+      },
+      {
+        "developer": "Dev B",
+        "focus": "Parquet backend + Backfill",
+        "tasks": ["20", "22"]
+      },
+      {
+        "developer": "Dev C",
+        "focus": "TimescaleDB backend + Enhanced CLI",
+        "tasks": ["21", "23"]
+      }
+    ],
+    "shared_tasks": ["1", "16", "17", "24"]
+  },
+  "execution_order": {
+    "week_1": {
+      "tasks": ["1", "16", "17"],
+      "parallel": false,
+      "description": "Foundation - all developers collaborate on setup"
+    },
+    "week_2": {
+      "tasks": ["18", "20", "21"],
+      "parallel": true,
+      "description": "Backend implementations - 3 developers work in parallel"
+    },
+    "week_3": {
+      "tasks": ["18", "19", "20", "21", "23"],
+      "parallel": true,
+      "description": "Continue backends + start CLI as backends complete"
+    },
+    "week_4": {
+      "tasks": ["22", "24"],
+      "parallel": false,
+      "description": "Backfill orchestration + comprehensive testing"
+    }
+  }
+}
