@@ -63,6 +63,33 @@ function countFiles(dir: string, extension: string = '.parquet'): number {
   return count;
 }
 
+function encodeSegmentForTest(value: string): string {
+  const buffer = Buffer.from(value, 'utf8').toString('base64');
+  return buffer.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function buildPartitionPath(
+  basePath: string,
+  exchange: string,
+  symbol: string,
+  timeframe: string,
+  year: number,
+  month: number,
+  day: number
+): string {
+  const monthStr = String(month).padStart(2, '0');
+  const dayStr = String(day).padStart(2, '0');
+  return path.join(
+    basePath,
+    `exchange=${encodeSegmentForTest(exchange)}`,
+    `symbol=${encodeSegmentForTest(symbol)}`,
+    `timeframe=${encodeSegmentForTest(timeframe)}`,
+    String(year),
+    monthStr,
+    `${dayStr}.parquet`
+  );
+}
+
 // Helper to check if directory structure exists
 function checkPartitionStructure(
   basePath: string,
@@ -73,17 +100,7 @@ function checkPartitionStructure(
   month: number,
   day: number
 ): boolean {
-  const monthStr = String(month).padStart(2, '0');
-  const dayStr = String(day).padStart(2, '0');
-  const expectedPath = path.join(
-    basePath,
-    `exchange=${exchange}`,
-    `symbol=${symbol}`,
-    `timeframe=${timeframe}`,
-    String(year),
-    monthStr,
-    `${dayStr}.parquet`
-  );
+  const expectedPath = buildPartitionPath(basePath, exchange, symbol, timeframe, year, month, day);
   return fs.existsSync(expectedPath);
 }
 
@@ -240,6 +257,24 @@ describe('ParquetBackend', () => {
     it('should handle writeMany with empty array', async () => {
       const written = await backend.writeMany([]);
       expect(written).toBe(0);
+    });
+
+    it('should flush buffers when custom batchSize is provided', async () => {
+      const timestamp = Date.now();
+      const points: DataPoint[] = [
+        createTestDataPoint('binance', 'BTCUSDT', '1m', timestamp),
+        createTestDataPoint('binance', 'BTCUSDT', '1m', timestamp + 60_000),
+      ];
+
+      await backend.writeMany(points, { batchSize: 2 });
+
+      const date = new Date(timestamp);
+      const year = date.getUTCFullYear();
+      const month = date.getUTCMonth() + 1;
+      const day = date.getUTCDate();
+      const expectedPath = buildPartitionPath(testDataPath, 'binance', 'BTCUSDT', '1m', year, month, day);
+
+      expect(fs.existsSync(expectedPath)).toBe(true);
     });
 
     it('should partition data across different exchanges', async () => {
@@ -544,16 +579,19 @@ describe('ParquetBackend', () => {
       await backend.write(point);
       await backend.disconnect();
 
-      const expectedPath = path.join(
-        testDataPath,
-        'exchange=binance',
-        'symbol=BTCUSDT',
-        'timeframe=1m',
-        '2024',
-        '01',
-        '15.parquet'
-      );
+      const expectedPath = buildPartitionPath(testDataPath, 'binance', 'BTCUSDT', '1m', 2024, 1, 15);
 
+      expect(fs.existsSync(expectedPath)).toBe(true);
+    });
+
+    it('should encode unsafe characters in partition paths', async () => {
+      const timestamp = new Date('2024-01-15T12:00:00Z').getTime();
+      const point = createTestDataPoint('binance', 'BTC/USDT', '1m', timestamp);
+
+      await backend.write(point);
+      await backend.disconnect();
+
+      const expectedPath = buildPartitionPath(testDataPath, 'binance', 'BTC/USDT', '1m', 2024, 1, 15);
       expect(fs.existsSync(expectedPath)).toBe(true);
     });
 

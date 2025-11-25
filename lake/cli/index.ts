@@ -10,9 +10,8 @@ import { Command } from 'commander';
 import { createBackend } from '../src/index.js';
 import type { BackendConfig, DataQuery, Candle, Gap, LakeStats } from '../src/types.js';
 import type { Backend } from '../src/interface.js';
-// TODO: Re-enable after fixing conflicts
-// import { registerBackfillCommands } from './commands/backfill.js';
-// import { registerAdvancedCommands } from './commands/advanced.js';
+import { registerBackfillCommands } from './commands/backfill.js';
+import { registerAdvancedCommands } from './commands/advanced.js';
 
 const program = new Command();
 
@@ -38,11 +37,35 @@ function formatNumber(num: number): string {
 /**
  * Create backend from CLI options
  */
-async function getBackend(options: any): Promise<Backend> {
+function buildBackendConfig(options: any): BackendConfig {
   const config: BackendConfig = {
     type: options.backend || 'sqlite',
-    path: options.path || './lake.db',
   };
+
+  if (config.type === 'sqlite' || config.type === 'parquet') {
+    config.path = options.path || './lake.db';
+  }
+
+  if (config.type === 'timescaledb') {
+    config.connectionString = options.connection || process.env.LAKE_CONNECTION_STRING;
+  } else if (options.connection && !config.connectionString) {
+    config.connectionString = options.connection;
+  }
+
+  if (config.type === 'parquet' && (options.s3Bucket || options.s3Region)) {
+    config.s3 = {
+      bucket: options.s3Bucket,
+      region: options.s3Region,
+      accessKeyId: options.s3AccessKey,
+      secretAccessKey: options.s3SecretKey,
+    };
+  }
+
+  return config;
+}
+
+async function getBackend(options: any): Promise<Backend> {
+  const config = buildBackendConfig(options);
 
   try {
     const backend = await createBackend(config);
@@ -206,6 +229,11 @@ program
   .description('Show lake statistics')
   .option('-b, --backend <type>', 'Backend type (sqlite|parquet|timescaledb)', 'sqlite')
   .option('-p, --path <path>', 'Database path', './lake.db')
+  .option('-c, --connection <string>', 'Connection string (TimescaleDB)')
+  .option('--s3-bucket <name>', 'S3 bucket for Parquet backend')
+  .option('--s3-region <region>', 'S3 region for Parquet backend')
+  .option('--s3-access-key <key>', 'S3 access key ID')
+  .option('--s3-secret-key <key>', 'S3 secret access key')
   .option('-e, --exchange <exchange>', 'Filter by exchange')
   .option('-s, --symbol <symbol>', 'Filter by symbol')
   .action(async (options) => {
@@ -231,6 +259,11 @@ program
   .description('Find gaps in data for a specific symbol')
   .option('-b, --backend <type>', 'Backend type (sqlite|parquet|timescaledb)', 'sqlite')
   .option('-p, --path <path>', 'Database path', './lake.db')
+  .option('-c, --connection <string>', 'Connection string (TimescaleDB)')
+  .option('--s3-bucket <name>', 'S3 bucket for Parquet backend')
+  .option('--s3-region <region>', 'S3 region for Parquet backend')
+  .option('--s3-access-key <key>', 'S3 access key ID')
+  .option('--s3-secret-key <key>', 'S3 secret access key')
   .option('--since <timestamp>', 'Start timestamp (ms)', (val) => parseInt(val, 10))
   .option('--until <timestamp>', 'End timestamp (ms)', (val) => parseInt(val, 10))
   .option('--min-gap <ms>', 'Minimum gap size in milliseconds', (val) => parseInt(val, 10))
@@ -275,6 +308,11 @@ program
   .description('Query candles from the lake')
   .option('-b, --backend <type>', 'Backend type (sqlite|parquet|timescaledb)', 'sqlite')
   .option('-p, --path <path>', 'Database path', './lake.db')
+  .option('-c, --connection <string>', 'Connection string (TimescaleDB)')
+  .option('--s3-bucket <name>', 'S3 bucket for Parquet backend')
+  .option('--s3-region <region>', 'S3 region for Parquet backend')
+  .option('--s3-access-key <key>', 'S3 access key ID')
+  .option('--s3-secret-key <key>', 'S3 secret access key')
   .option('--since <timestamp>', 'Start timestamp (ms)', (val) => parseInt(val, 10))
   .option('--until <timestamp>', 'End timestamp (ms)', (val) => parseInt(val, 10))
   .option('-l, --limit <n>', 'Limit results', (val) => parseInt(val, 10), 100)
@@ -382,9 +420,8 @@ For more information, use --help with any command.
   });
 
 // Register additional command modules
-// TODO: Re-enable after fixing conflicts
-// registerBackfillCommands(program);
-// registerAdvancedCommands(program);
+registerBackfillCommands(program);
+registerAdvancedCommands(program);
 
 // Parse command line arguments
 program.parse();

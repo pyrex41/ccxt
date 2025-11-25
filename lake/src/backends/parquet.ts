@@ -69,6 +69,7 @@ export class ParquetBackend extends BaseBackend {
   // Write buffer for batch operations
   private writeBuffers = new Map<string, WriteBuffer>();
   private readonly BUFFER_SIZE = 1000; // Flush after 1000 points
+  private readonly BUFFER_TTL_MS = 5_000;
 
   // Parquet schema for OHLCV data
   private readonly schema = new parquet.ParquetSchema({
@@ -161,8 +162,7 @@ export class ParquetBackend extends BaseBackend {
     buffer.points.push(point);
     buffer.lastWrite = Date.now();
 
-    // Flush if buffer size threshold exceeded
-    if (buffer.points.length >= this.BUFFER_SIZE) {
+    if (this.shouldFlushBuffer(buffer)) {
       await this.flushBuffer(bufferKey);
     }
   }
@@ -179,12 +179,14 @@ export class ParquetBackend extends BaseBackend {
 
     // Group points by partition
     const partitionGroups = new Map<string, DataPoint[]>();
+    const touchedKeys: string[] = [];
 
     for (const point of points) {
       const bufferKey = this.getBufferKey(point);
       const group = partitionGroups.get(bufferKey) || [];
       group.push(point);
       partitionGroups.set(bufferKey, group);
+      touchedKeys.push(bufferKey);
     }
 
     // Write each partition group
@@ -195,13 +197,12 @@ export class ParquetBackend extends BaseBackend {
       this.writeBuffers.set(bufferKey, buffer);
     }
 
-    // Flush all buffers if requested or if any buffer exceeds threshold
-    const shouldFlush = options?.batchSize !== undefined
-      ? false
-      : Array.from(this.writeBuffers.values()).some(b => b.points.length >= this.BUFFER_SIZE);
-
-    if (shouldFlush) {
-      await this.flushAll();
+    if (options?.batchSize !== undefined) {
+      for (const key of new Set(touchedKeys)) {
+        await this.flushBuffer(key);
+      }
+    } else {
+      await this.flushPendingBuffers();
     }
 
     return points.length;
@@ -596,9 +597,9 @@ export class ParquetBackend extends BaseBackend {
     if (!match) return null;
 
     return {
-      exchange: match[1],
-      symbol: match[2],
-      timeframe: match[3],
+      exchange: decodeSegment(match[1]),
+      symbol: decodeSegment(match[2]),
+      timeframe: decodeSegment(match[3]),
       year: parseInt(match[4], 10),
       month: parseInt(match[5], 10),
       day: parseInt(match[6], 10),
@@ -658,7 +659,7 @@ export class ParquetBackend extends BaseBackend {
     const monthStr = String(key.month).padStart(2, '0');
     const dayStr = String(key.day).padStart(2, '0');
 
-    const relativePath = `exchange=${key.exchange}/symbol=${key.symbol}/timeframe=${key.timeframe}/${yearStr}/${monthStr}/${dayStr}.parquet`;
+    const relativePath = `exchange=${encodeSegment(key.exchange)}/symbol=${encodeSegment(key.symbol)}/timeframe=${encodeSegment(key.timeframe)}/${yearStr}/${monthStr}/${dayStr}.parquet`;
 
     return {
       localPath: path.join(this.basePath, relativePath),
@@ -765,6 +766,23 @@ export class ParquetBackend extends BaseBackend {
     for (const bufferKey of bufferKeys) {
       await this.flushBuffer(bufferKey);
     }
+  }
+
+  private async flushPendingBuffers(force = false): Promise<void> {
+    const now = Date.now();
+
+    for (const [bufferKey, buffer] of this.writeBuffers) {
+      if (force || this.shouldFlushBuffer(buffer, now)) {
+        await this.flushBuffer(bufferKey);
+      }
+    }
+  }
+
+  private shouldFlushBuffer(buffer: WriteBuffer, now: number = Date.now()): boolean {
+    if (buffer.points.length >= this.BUFFER_SIZE) {
+      return true;
+    }
+    return (now - buffer.lastWrite) >= this.BUFFER_TTL_MS;
   }
 
   /**
@@ -928,4 +946,17 @@ export class ParquetBackend extends BaseBackend {
 
     return Buffer.concat(chunks);
   }
+}
+
+function encodeSegment(value: string): string {
+  const buffer = Buffer.from(value, 'utf8').toString('base64');
+  return buffer.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function decodeSegment(value: string): string {
+  let base64 = value.replace(/-/g, '+').replace(/_/g, '/');
+  while (base64.length % 4 !== 0) {
+    base64 += '=';
+  }
+  return Buffer.from(base64, 'base64').toString('utf8');
 }
