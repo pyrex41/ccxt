@@ -1,0 +1,27 @@
+{
+  "name": "@ccxt/lake",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "CCXT Data Lake - High-performance market data storage and retrieval",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.637.0",
+    "@dsnp/parquetjs": "^1.8.7",
+    "better-sqlite3": "^11.5.0",
+    "commander": "^12.1.0",
+    "pg": "^8.12.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.11",
+    "@types/node": "^22.5.4",
+    "@types/pg": "^8.11.8",
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  }
+}
